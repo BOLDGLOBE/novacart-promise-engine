@@ -20,7 +20,7 @@ reasoning behind it, and a working prototype that addresses it.
 
 ## 1. Run it
 
-OPRN THE URL-https://boldglobe.github.io/novacart-promise-engine/index.html
+OPEN THE URL-https://boldglobe.github.io/novacart-promise-engine/index.html
 
 No build step, no dependencies, no API keys.
 
