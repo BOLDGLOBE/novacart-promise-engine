@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Submission — NOVA CART Promise Engine</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="../assets/css/app.css?v=10">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <section class="tight">
+    <div class="wrap wrap-narrow">
+      <div class="eyebrow good">Deliverables</div>
+      <h1 style="margin-top:16px;font-size:clamp(26px,3.4vw,40px)">The seven things the brief asks for.</h1>
+      <p class="lede" style="margin-top:16px">
+        The full written submission lives in <a href="../README.md">README.md</a> at the root of the
+        repository. This page maps each required deliverable to where it is.
+      </p>
+
+      <div class="stack" style="margin-top:30px" id="list"></div>
+
+      <div class="note" style="margin-top:34px">
+        <strong>Run it:</strong> open <code>index.html</code> in a browser, or serve the folder with
+        <code>python3 -m http.server 8080</code>. There is no build step, no dependency and no API key.
+        All reasoning runs locally in <code>assets/js/engine.js</code>.
+      </div>
+
+      <div class="card flat" style="margin-top:20px">
+        <div class="cap">The chain the brief asks us to demonstrate</div>        <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+          <span class="pill on">Evidence</span>
+          <span class="pill on">Prompting</span>
+          <span class="pill on">Insight</span>
+          <span class="pill on">Problem</span>
+          <span class="pill on">Product</span>
+          <span class="pill on">Functional build</span>
+          <span class="pill on">Business impact</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="footer"></div>
+
+<script src="../assets/js/data.js?v=10"></script>
+<script src="../assets/js/engine.js?v=10"></script>
+<script src="../assets/js/ui.js?v=10"></script>
+<script src="../assets/js/auth.js?v=20"></script>
+<script>
+(function () {
+  const { el, mount } = UI;
+  UI.mountNav('docs');
+  UI.mountFooter();
+  AUTH.init();
+
+  const items = [
+    ['Problem Diagnosis', 'The underlying problem identified and the evidence supporting it.',
+     'Section 2 of README.md. Rendered with live computed ratios at index.html — scoreboard, six exposing ratios, the funnel, the cancellation breakdown and the root-cause mechanism.',
+     'index.html'],
+    ['Prompt Journey', 'The key prompts that influenced the analysis and product decisions.',
+     'Section 3 of README.md. Six prompts that changed the outcome, each with what it corrected — including the two that argued against our own idea.',
+     'README.md'],
+    ['Solution Explanation', 'What was built, who it is for, and why it addresses the diagnosis.',
+     'Section 4 of README.md. Three users on one shared dataset, plus a table mapping input → processing → action for the functional-prototype requirement.',
+     'README.md'],
+    ['Functional Prototype', 'A working application demonstrating core functionality.',
+     'app.html. Three role views over live data. Run a store pulse, then switch to the customer app and press "Reveal ground truth" — the same inventory rows drive both.',
+     'app.html'],
+    ['Source Code', 'The project repository containing the implementation.',
+     'This repository. Plain HTML/CSS/JS, no build step. Every number on screen traces to a formula in assets/js/engine.js.',
+     'README.md'],
+    ['Demo', 'The primary user journey and functionality.',
+     'Suggested 4-minute walkthrough in Section 1 of README.md, plus the guided hint on app.html. Customer order → smart swap → stock-out → auto-reroute is the core path.',
+     'app.html'],
+    ['Business Impact', 'The measurable value the solution could create.',
+     'Section 5 of README.md and the full model at impact.html. Every assumption is a live slider, including "all to zero" to prove there is no hidden baseline gain.',
+     'impact.html']
+  ];
+
+  mount(document.getElementById('list'), items.map(([t, req, where, href], i) =>
+    el('div.card', null, [
+      el('div.row.between', { style: { alignItems: 'flex-start' } }, [
+        el('div', null, [
+          el('div', { style: { fontSize: '11px', fontWeight: '800', letterSpacing: '.1em', color: 'var(--brand-2)' },
+            text: 'DELIVERABLE ' + (i + 1) }),
+          el('div', { style: { fontSize: '17px', fontWeight: '750', marginTop: '5px', letterSpacing: '-.02em' }, text: t }),
+          el('div', { style: { fontSize: '13px', color: 'var(--muted)', marginTop: '3px', fontStyle: 'italic' }, text: req })
+        ]),
+        el('a.btn.sm', { href: href, target: i === 4 ? '_blank' : '_self' },
+          href.endsWith('.md') ? 'README.md' : 'Open →')
+      ]),
+      el('p', { style: { margin: '13px 0 0', fontSize: '13.5px' }, text: where })
+    ])));
+})();
+</script>
+</body>
+</html>

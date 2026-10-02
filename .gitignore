@@ -1,0 +1,73 @@
+# --- Operating system -------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Windows -----------------------------------------------------------
+*.lnk
+*.stackdump
+$RECYCLE.BIN/
+hiberfil.sys
+pagefile.sys
+
+# --- Editors / IDEs ----------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+*.swp
+*.swo
+*~
+
+# --- Node (this project has no runtime deps, but keep the door shut) ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+
+# --- Build output ------------------------------------------------------
+# The prototype is intentionally build-free. These only appear if someone
+# later adds a bundler, and should never end up in a submission.
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+
+# --- Local environment -------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.local
+
+# --- Logs & temp -------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.pid
+*.seed
+tmp/
+temp/
+.cache/
+
+# --- Test / coverage ---------------------------------------------------
+coverage/
+.nyc_output/
+
+# --- OS / editor artefacts inside the project --------------------------
+.DS_Store
+*.swp
+._*

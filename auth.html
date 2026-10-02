@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — NOVA CART Promise Engine</title>
+<meta name="description" content="Create a NOVA CART account and pick your delivery location.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css?v=20">
+</head>
+<body>
+<div id="nav"></div>
+
+<main>
+  <section class="tight">
+    <div class="wrap">
+      <div class="auth-wrap">
+        <div>
+          <div class="eyebrow">Accounts & delivery location</div>
+          <h1 style="margin-top:16px;font-size:clamp(26px,3.4vw,40px)">Tell us where you are.</h1>
+          <p style="margin-top:12px;max-width:520px">
+            NOVA CART is local commerce. Your delivery location decides which shops you can order from,
+            which ones we will re-route to when something runs out, and which city you are shown at all.
+            It is the first thing we ask for, and the last thing we need from you on every order.
+          </p>
+          <div class="card flat" style="margin-top:24px">
+            <div class="cap">Why location is the whole product</div>
+            <ul class="reasons" style="margin-top:12px">
+              <li>A store is only useful to you if it is inside your delivery radius — we compute real distance, not a city filter.</li>
+              <li>When the Promise Engine has to re-route a failed line, it searches <em>your</em> area, not the whole city.</li>
+              <li>Demand forecasts are per micro-market, so your location changes which stock data matters.</li>
+              <li>State is derived from your PIN code, so it can never contradict your address.</li>
+            </ul>
+          </div>
+          <div class="note warn" style="margin-top:14px">
+            <strong>This is a front-end prototype.</strong> Accounts are stored in your browser only
+            (<code>localStorage</code>) and passwords are salted and SHA-256 hashed, but there is no server —
+            so this is not real authentication. Never use a real password here.
+          </div>
+        </div>
+
+        <div>
+          <div class="card pad-lg hl">
+            <div class="tabs" style="margin-bottom:20px">
+              <button id="tab-signup" class="on">Create account</button>
+              <button id="tab-signin">Sign in</button>
+            </div>
+
+            <!-- ------------------------------------------------ SIGN UP ---- -->
+            <form id="form-signup" novalidate>
+              <div class="field" id="f-name">
+                <label class="fl" for="su-name">Full name</label>
+                <input id="su-name" type="text" placeholder="Priya Sharma" autocomplete="name">
+              </div>
+
+              <div class="field" id="f-gender">
+                <label class="fl">Gender</label>
+                <div class="radio-set" id="su-gender">
+                  <label data-v="female"><input type="radio" name="g" value="female">Female</label>
+                  <label data-v="male"><input type="radio" name="g" value="male">Male</label>
+                  <label data-v="other"><input type="radio" name="g" value="other">Other</label>
+                  <label data-v="prefer-not"><input type="radio" name="g" value="prefer-not">Prefer not to say</label>
+                </div>
+                <div class="field-msg" hidden>Select an option</div>
+              </div>
+
+              <div class="field row2">
+                <div id="f-email">
+                  <label class="fl" for="su-email">Email</label>
+                  <input id="su-email" type="text" placeholder="priya@example.com" autocomplete="email">
+                </div>
+                <div id="f-phone">
+                  <label class="fl" for="su-phone">Mobile (optional)</label>
+                  <input id="su-phone" type="text" placeholder="9876543210" inputmode="numeric" autocomplete="tel">
+                </div>
+              </div>
+
+              <div class="field" id="f-pin">
+                <label class="fl" for="su-pin">Delivery PIN code</label>
+                <input id="su-pin" type="text" placeholder="560102" inputmode="numeric" maxlength="6" autocomplete="postal-code">
+                <div class="field-hint" id="pin-hint">We deliver to 15 areas across Karnataka, Maharashtra and Telangana.</div>
+              </div>
+
+              <div class="field" id="f-password">
+                <label class="fl" for="su-pass">Password</label>
+                <input id="su-pass" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+                <div class="pw-meter"><i id="pw-meter"></i></div>
+                <div class="field-hint" id="pw-hint">Use 8+ characters with at least one letter and one number.</div>
+              </div>
+
+              <label style="display:flex;gap:9px;align-items:center;font-size:13px;color:var(--text-2);margin-bottom:16px;cursor:pointer">
+                <input type="checkbox" id="su-remember" checked> Keep me signed in on this device
+              </label>
+
+              <div class="note danger hidden" id="su-form-err" style="margin-bottom:14px"></div>
+
+              <button class="btn primary block" style="padding:13px" type="submit">Create account</button>
+              <p class="tiny faint center" style="margin-top:12px">
+                Demo only — data stays in this browser. <a href="#" id="to-signin">Already have an account? Sign in</a>
+              </p>
+            </form>
+
+            <!-- ------------------------------------------------ SIGN IN ---- -->
+            <form id="form-signin" novalidate hidden>
+              <div class="field" id="f-id">
+                <label class="fl" for="si-id">Email or mobile number</label>
+                <input id="si-id" type="text" placeholder="priya@example.com" autocomplete="username">
+              </div>
+              <div class="field" id="f-sipass">
+                <label class="fl" for="si-pass">Password</label>
+                <input id="si-pass" type="password" placeholder="Your password" autocomplete="current-password">
+              </div>
+              <label style="display:flex;gap:9px;align-items:center;font-size:13px;color:var(--text-2);margin-bottom:16px;cursor:pointer">
+                <input type="checkbox" id="si-remember" checked> Keep me signed in
+              </label>
+              <div class="note danger hidden" id="si-form-err" style="margin-bottom:14px"></div>
+              <button class="btn primary block" style="padding:13px" type="submit">Sign in</button>
+              <p class="tiny faint center" style="margin-top:12px">
+                No account yet? <a href="#" id="to-signup">Create one</a>
+              </p>
+            </form>
+          </div>
+
+          <div class="card flat" style="margin-top:14px">
+            <div class="cap">Just browsing?</div>
+            <p class="small" style="margin:8px 0 12px">
+              You can explore the prototype without an account. We will still use a default delivery
+              location so you can see how nearby stores are chosen.
+            </p>
+            <div class="row">
+              <a class="btn sm" href="stores.html">Browse local stores</a>
+              <a class="btn sm ghost" href="app.html">Open the prototype</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="footer"></div>
+
+<script src="assets/js/data.js?v=20"></script>
+<script src="assets/js/engine.js?v=20"></script>
+<script src="assets/js/ui.js?v=20"></script>
+<script src="assets/js/auth.js?v=20"></script>
+<script>
+(function () {
+  const { $, toast } = UI;
+  UI.mountNav('auth');
+  UI.mountFooter();
+  AUTH.init('auth');
+
+  const nextUrl = new URLSearchParams(location.search).get('next') || 'stores.html';
+
+  /* Already signed in? Default to the sign-in tab and offer a way out, rather
+     than destroying the sign-up form (which took its "switch" link with it). */
+  if (AUTH.isSignedIn()) {
+    const u = AUTH.currentUser();
+    show('signin');
+    $('#tab-signup').hidden = true;
+    $('#form-signin').insertAdjacentHTML('afterbegin',
+      '<div class="note good" style="margin-bottom:16px"><strong>Already signed in</strong> as ' +
+      u.name + ' — ' + u.area + ', ' + u.city + ' (' + u.pin + '). ' +
+      '<a href="#" id="switch-account">Use a different account</a></div>');
+    $('#switch-account').onclick = (e) => {
+      e.preventDefault();
+      AUTH.signOut();
+      location.reload();
+    };
+  }
+
+  /* ------------------------------------------------------------- tabs ---- */
+  function show(which) {
+    const up = which === 'signup';
+    const suTab = $('#tab-signup');
+    if (suTab.hidden) up = false;   // already signed in — sign-up is unavailable
+    $('#tab-signup').classList.toggle('on', up);
+    $('#tab-signin').classList.toggle('on', !up);
+    $('#form-signup').hidden = !up;
+    $('#form-signin').hidden = up;
+  }
+  $('#tab-signup').onclick = () => show('signup');
+  $('#tab-signin').onclick = () => show('signin');
+  const toSignin = $('#to-signin'), toSignup = $('#to-signup');
+  if (toSignin) toSignin.onclick = (e) => { e.preventDefault(); show('signin'); };
+  if (toSignup) toSignup.onclick = (e) => { e.preventDefault(); show('signup'); };
+
+  /* --------------------------------------------------- gender radios ---- */
+  Array.from(document.querySelectorAll('#su-gender label')).forEach((lab) => {
+    lab.onclick = () => {
+      Array.from(document.querySelectorAll('#su-gender label')).forEach((l) => l.classList.remove('on'));
+      lab.classList.add('on');
+      lab.querySelector('input').checked = true;
+    };
+  });
+
+  /* --------------------------------------------------- password meter ---- */
+  $('#su-pass').oninput = (e) => {
+    const v = e.target.value;
+    let score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+    if (/\d/.test(v)) score++;
+    if (/[^\w\s]/.test(v)) score++;
+    const meter = $('#pw-meter');
+    meter.style.width = (score / 5 * 100) + '%';
+    meter.style.background = score <= 2 ? 'var(--danger)' : score <= 3 ? 'var(--warn)' : 'var(--good)';
+    $('#pw-hint').textContent = score <= 2
+      ? 'At least 8 characters with one letter and one number.'
+      : score <= 3 ? 'Getting there — add length or a symbol.' : 'Strong enough for a demo.';
+  };
+
+  /* ------------------------------------------------- PIN -> state hint ---- */
+  $('#su-pin').oninput = (e) => {
+    const loc = NOVA.locationByPin(e.target.value);
+    $('#pin-hint').textContent = loc
+      ? loc.area + ', ' + loc.city + ', ' + loc.state
+      : e.target.value.length === 6
+        ? 'We do not deliver to that PIN code yet.'
+        : 'We deliver to 15 areas across Karnataka, Maharashtra and Telangana.';
+  };
+
+  /* ---------------------------------------------------------- errors ---- */
+  function paintErrors(prefix, errors) {
+    ['name', 'gender', 'email', 'phone', 'pin', 'password'].forEach((k) => {
+      const box = $('#f-' + k);
+      if (!box) return;
+      const msg = errors[k];
+      box.classList.toggle('err', !!msg);
+      const m = box.querySelector('.field-msg');
+      if (m) { m.textContent = msg || ''; m.hidden = !msg; }
+    });
+    const fe = $('#' + prefix + '-form-err');
+    if (fe) {
+      const form = errors.form || errors.__form;
+      fe.textContent = form || '';
+      fe.classList.toggle('hidden', !form);
+    }
+  }
+
+  /* ----------------------------------------------------------- signup ---- */
+  $('#form-signup').onsubmit = async (e) => {
+    e.preventDefault();
+    const gender = ($('#su-gender label.on') || {}).dataset;
+    const res = await AUTH.signUp({
+      name: $('#su-name').value,
+      gender: gender ? gender.v : '',
+      email: $('#su-email').value,
+      phone: $('#su-phone').value,
+      pin: $('#su-pin').value,
+      password: $('#su-pass').value
+    });
+    paintErrors('su', res.errors || {});
+    if (!res.ok) {
+      const first = document.querySelector('.field.err input, .field.err label');
+      if (first) first.focus();
+      toast(res.errors.form || 'Please fix the highlighted fields', 'danger', 3000);
+      return;
+    }
+    AUTH.setLocation(res.user.pin ? NOVA.locationByPin(res.user.pin).id : null);
+    toast('Welcome to NOVA CART, ' + res.user.name.split(' ')[0] + '!', 'good', 2800);
+    setTimeout(() => { location.href = nextUrl; }, 700);
+  };
+
+  /* ----------------------------------------------------------- signin ---- */
+  $('#form-signin').onsubmit = async (e) => {
+    e.preventDefault();
+    paintErrors('si', {});
+    const res = await AUTH.signIn($('#si-id').value, $('#si-pass').value, $('#si-remember').checked);
+    paintErrors('si', res.errors || {});
+    if (!res.ok) { toast(res.errors.form, 'danger', 3000); return; }
+    AUTH.setLocation(NOVA.locationByPin(res.user.pin).id);
+    toast('Welcome back, ' + res.user.name.split(' ')[0] + '!', 'good');
+    setTimeout(() => { location.href = nextUrl; }, 600);
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVA CART — Problem Diagnosis | Promise Engine</title>
+<meta name="description" content="Why NOVA CART is getting bigger but not better — and what to build about it.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css?v=10">
+</head>
+<body>
+<div id="nav"></div>
+<main id="page"></main>
+<div id="footer"></div>
+
+<script src="assets/js/data.js?v=10"></script>
+<script src="assets/js/engine.js?v=10"></script>
+<script src="assets/js/ui.js?v=10"></script>
+<script src="assets/js/auth.js?v=20"></script>
+<script>
+(function () {
+  const { el, inr, inrFull, num, pct, signed, mount, kpi, badge, barRow, statLine,
+          barChart, legend, donut, funnelRow, note, reasonsList, openModal, modalShell, toast } = UI;
+  const N = NOVA, D = NOVA.DERIVED, B = NOVA.BRIEF;
+  const { OPS, CUSTOMER_SIGNALS, STORE_SIGNALS, BEHAVIOUR } = NOVA;
+  const page = document.getElementById('page');
+  const S = (node) => { page.appendChild(node); return node; };
+  const sec = (children, cls) => S(el('section' + (cls ? '.' + cls : ''), null, el('div.wrap', null, children)));
+  const cap = (t) => el('div.cap', { text: t, style: { marginBottom: '10px' } });
+
+  UI.mountNav('diagnosis');
+  UI.mountFooter();
+  AUTH.init();
+
+  /* ============================================================ 1. HERO === */
+  S(el('header.hero', null, el('div.wrap', null, [
+    el('div.eyebrow', null, ['Evidence → Insight → Problem → Product']),
+    el('h1', { style: { marginTop: '18px', maxWidth: '15ch' } },
+      ['NOVA CART is getting bigger.', el('br'), el('span.grad', { text: 'It is not getting better.' })]),
+    el('p.lede', { style: { marginTop: '20px' } }, [
+      'Registered users are up 46%. Promotional spend is up 79%. Revenue is up 20%. ',
+      'Repeat purchase rate has collapsed from 41% to 27%, cancellations have nearly doubled, ',
+      'and support tickets have almost doubled with them.'
+    ]),
+    el('p.lede', { style: { marginTop: '-4px' } }, [
+      'The company is not failing. It is ',
+      el('strong', { style: { color: 'var(--danger)' }, text: 'paying more and more to get less and less' }),
+      '. This page shows what is actually breaking, and why.'
+    ]),
+    el('div.row', { style: { marginTop: '28px' } }, [
+      el('a.btn.primary', { href: 'app.html' }, ['Open the working prototype →']),
+      el('a.btn', { href: 'impact.html' }, ['See the business impact']),
+      el('a.btn.ghost', { href: '#rootcause' }, ['Jump to the root cause'])
+    ]),
+    el('div.kicker', { text: 'NOVA CART is the fictional quick-commerce platform from the PromptWars Business Rescue Challenge. Every number below is derived from the brief.' })
+  ])));
+
+  /* ==================================================== 2. SCOREBOARD ==== */
+  const scorecard = [
+    ['Registered users', B.registeredUsers.then, B.registeredUsers.now, num, 'up'],
+    ['Monthly active users', B.mau.then, B.mau.now, num, 'up'],
+    ['Monthly orders', B.monthlyOrders.then, B.monthlyOrders.now, num, 'up'],
+    ['Average order value', B.aov.then, B.aov.now, (v) => '₹' + v, 'up'],
+    ['Revenue / month', B.revenue.then, B.revenue.now, inr, 'up'],
+    ['Promotional spend / month', B.promoSpend.then, B.promoSpend.now, inr, 'down'],
+    ['Repeat purchase rate', B.repeatRate.then, B.repeatRate.now, (v) => v + '%', 'up'],
+    ['Average delivery time', B.deliveryTime.then, B.deliveryTime.now, (v) => v + ' min', 'down'],
+    ['Order cancellation rate', B.cancelRate.then, B.cancelRate.now, (v) => v + '%', 'down'],
+    ['Support tickets / month', B.supportTickets.then, B.supportTickets.now, num, 'down']
+  ];
+
+  sec([
+    el('div.row.between', { style: { marginBottom: '22px' } }, [
+      el('div', null, [
+        cap('Six-month scorecard'),
+        el('h2', { text: 'The scoreboard, read honestly' })
+      ]),
+      el('div.small.muted', { style: { maxWidth: '340px' } }, [
+        'Green means the number moved in a good direction. ',
+        'Growth is real — but look at what it cost.'
+      ])
+    ]),
+    el('div.card', { style: { padding: '0', overflow: 'hidden' } },
+      el('div.tbl-scroll', null, el('table', null, [
+        el('thead', null, el('tr', null, [
+          el('th', { text: 'Metric' }), el('th.num', { text: '6 months ago' }),
+          el('th.num', { text: 'Now' }), el('th.num', { text: 'Change' }), el('th', { text: 'Direction' })
+        ])),
+        el('tbody', null, scorecard.map(([label, then, now, fmt, dir]) => {
+          const ch = ((now - then) / then) * 100;
+          // `dir` is the direction IMPROVEMENT lies in, not the direction it moved.
+          // Repeat rate falling is bad; cancellation rate falling is good.
+          const good = dir === 'up' ? ch > 0 : ch < 0;
+          return el('tr', null, [
+            el('td', { text: label, style: { color: 'var(--text)', fontWeight: '600' } }),
+            el('td.num', { text: fmt(then) }),
+            el('td.num', { text: fmt(now), style: { color: 'var(--text)', fontWeight: '700' } }),
+            el('td.num', null, el('span.badge.' + (good ? 'b-good' : 'b-danger'), { text: signed(ch) + '%' })),
+            el('td', null, el('span.small.' + (good ? 'up' : 'down'), { text: good ? '● improving' : '● deteriorating' }))
+          ]);
+        }))
+      ])))
+  ]);
+
+  /* ================================================== 3. THE CONTRADICTION */
+  const ratioCards = [
+    { l: 'Revenue per ₹1 of promo spend', t: D.revenuePerPromoRupee.then, n: D.revenuePerPromoRupee.now, fmt: (v) => '₹' + v },
+    { l: 'Revenue per monthly active user', t: D.revenuePerMau.then, n: D.revenuePerMau.now, fmt: (v) => '₹' + v },
+    { l: 'Activation rate (MAU ÷ registered)', t: D.activationRate.then, n: D.activationRate.now, fmt: (v) => v + '%' },
+    { l: 'Support tickets per 100 orders', t: D.ticketsPerOrder.then, n: D.ticketsPerOrder.now, fmt: (v) => v },
+    { l: 'Marketplace take rate', t: D.takeRate.then, n: D.takeRate.now, fmt: (v) => v + '%' },
+    { l: 'Promo spend as a share of revenue', t: D.promoShareOfRevenue.then, n: D.promoShareOfRevenue.now, fmt: (v) => v + '%' }
+  ];
+
+  sec([
+    cap('The contradiction'),
+    el('h2', { text: 'Six ratios that expose the real problem' }),
+    el('p', { style: { maxWidth: '760px', marginTop: '12px' } }, [
+      'Absolute numbers flatter NOVA CART. Ratios do not. These are computed from the brief itself — ',
+      'no external assumptions.'
+    ]),
+    el('div.grid.g3', { style: { marginTop: '26px' } }, ratioCards.map((c) => {
+      const ch = ((c.n - c.t) / c.t) * 100;
+      const good = ch > 0;
+      return el('div.kpi', null, [
+        el('div.lbl', { text: c.l }),
+        el('div.row.mid', { style: { gap: '10px', margin: '6px 0 2px' } }, [
+          el('span', { style: { fontSize: '15px', color: 'var(--faint)', textDecoration: 'line-through' }, text: c.fmt(c.t) }),
+          el('span', { style: { fontSize: '25px', fontWeight: '800', letterSpacing: '-.03em' }, text: c.fmt(c.n) })
+        ]),
+        el('span.badge.' + (good ? 'b-good' : 'b-danger'), { text: signed(ch) + '%' })
+      ]);
+    })),
+    el('div.note.danger', { style: { marginTop: '22px' } }, [
+      '<strong>The single most damning number:</strong> revenue per monthly active user is flat — ',
+      '<code>₹' + D.revenuePerMau.then + '</code> six months ago, <code>₹' + D.revenuePerMau.now + '</code> today. ',
+      'Every rupee of the extra ₹7.5 lakh monthly promotional spend bought <em>volume</em>, not <em>value</em>. ',
+      'NOVA CART added 38,000 registered users and 7,000 monthly actives, and each active user is worth exactly what they were worth before.'
+    ]),
+    el('div.note', { style: { marginTop: '12px' } }, [
+      '<strong>And the margin is going with it.</strong> Promotional spend is now <strong>' + D.promoShareOfRevenue.now + '%</strong> ',
+      'of revenue, up from ' + D.promoShareOfRevenue.then + '%. The marketplace take rate slipped from ' + D.takeRate.then + '% to ' + D.takeRate.now + '%. ',
+      'The Finance Head is right: this is not a growth problem, it is a <em>quality of growth</em> problem.'
+    ])
+  ], 'tight');
+
+  /* ====================================================== 4. THE LEAK ==== */
+  sec([
+    cap('Following the money'),
+    el('h2', { text: 'Where does the damage actually happen?' }),
+    el('p', { style: { maxWidth: '760px', marginTop: '12px' } }, [
+      'NOVA CART loses orders in four distinct ways. Their sizes are given in the brief. ',
+      'The question that matters is: which of them is upstream of the others?'
+    ]),
+    el('div.grid.g2', { style: { marginTop: '26px', alignItems: 'start' } }, [
+      el('div.card', null, [
+        cap('Order outcomes'),
+        el('div.row', { style: { gap: '22px', alignItems: 'center', flexWrap: 'nowrap' } }, [
+          donut([
+            { value: 11, colour: '#ff4d5e' }, { value: 13, colour: '#ffb020' },
+            { value: 8, colour: '#38bdf8' }, { value: 6, colour: '#a78bfa' },
+            { value: 62, colour: '#243149' }
+          ], 132, 17),
+          el('div.grow.stack.tight', null, [
+            statLine('Cancelled', OPS.cancelled + '% of orders', 'down'),
+            statLine('Late by 15+ min', OPS.lateOver15 + '% of orders', 'flat'),
+            statLine('Contained a substitute', OPS.substituted + '% of orders', 'flat'),
+            statLine('Needed refund/support', OPS.refundOrSupport + '% of orders', 'flat'),
+            el('div.hr', { style: { margin: '10px 0' } }),
+            statLine('Delivered clean', '62% of orders', 'up')
+          ])
+        ]),
+        el('div.note.warn', { style: { marginTop: '16px' } }, [
+          '<strong>38% of orders do not land cleanly.</strong> That is the experience NOVA CART is ',
+          'spending ₹' + num(D.promoPerOrder.now) + ' per order to buy.'
+        ])
+      ]),
+      el('div.card', null, [
+        cap('Why orders get cancelled'),
+        el('div.stack.tight', { style: { marginTop: '6px' } }, OPS.cancelReasons.map((r, i) =>
+          barRow(r.label, r.pct + '%', r.pct / 40,
+            ['danger', 'warn', 'danger', 'info', 'mute'][i]))),
+        el('div.hr'),
+        el('div.row', { style: { gap: '10px' } }, [
+          el('div.kpi.grow', { style: { padding: '13px' } }, [
+            el('div.lbl', { text: 'Truth-driven' }),
+            el('div.val', { style: { fontSize: '24px', color: 'var(--danger)' }, text: D.cancelsFromTruth + '%' }),
+            el('div.sub', { text: 'stock error or store rejection' })
+          ]),
+          el('div.kpi.grow', { style: { padding: '13px' } }, [
+            el('div.lbl', { text: 'Delay-driven' }),
+            el('div.val', { style: { fontSize: '24px', color: 'var(--warn)' }, text: D.cancelsFromDelay + '%' }),
+            el('div.sub', { text: 'customer gives up waiting' })
+          ])
+        ]),
+        el('p.small', { style: { marginTop: '14px', marginBottom: '0' } }, [
+          'Read the two reasons together and a pattern appears: ',
+          el('strong', { style: { color: 'var(--text)' }, text: '53% of all cancellations trace back to a stock promise the store could not keep.' })
+        ])
+      ])
+    ])
+  ], 'tight');
+
+  /* ===================================================== 5. ROOT CAUSE === */
+  sec({ id: 'rootcause' });
+  page.lastChild.id = 'rootcause';
+  page.lastChild.appendChild(el('div.wrap', null, [
+    cap('Root cause'),
+    el('h2', { text: 'The app promises things the store cannot deliver' }),
+    el('p', { style: { maxWidth: '800px', marginTop: '12px' } }, [
+      'NOVA CART\'s inventory data is not wrong because anyone is careless. It is wrong because ',
+      'the system asks 620 independent shop owners to do data entry — and pays them nothing for it.'
+    ]),
+
+    el('div.grid.g2', { style: { marginTop: '30px', alignItems: 'start' } }, [
+      /* Customer side */
+      el('div.card', null, [
+        el('div.row.between', null, [cap('What customers say'), badge('n = 2,000', 'mute')]),
+        el('div.stack.tight', { style: { marginTop: '8px' } }, CUSTOMER_SIGNALS.map((s) =>
+          barRow(s.label, s.pct + '%', s.pct / 40,
+            s.cluster === 'truth' ? 'danger' : s.cluster === 'delivery' ? 'warn' : 'info',
+            s.cluster === 'truth' ? el('span', { text: '⚑', title: 'Inventory-truth signal' }) : null))),
+        el('div.note.danger', { style: { marginTop: '8px' } }, [
+          '<strong>29%</strong> — items shown as available turn out not to be. ',
+          '<strong>16%</strong> — refund problems. <strong>11%</strong> — tracking is inaccurate. ',
+          'These are not three complaints. They are one broken promise, experienced three ways.'
+        ])
+      ]),
+      /* Store side */
+      el('div.card', null, [
+        el('div.row.between', null, [cap('What partner stores say'), badge('n = 100', 'mute')]),
+        el('div.stack.tight', { style: { marginTop: '8px' } }, STORE_SIGNALS.map((s) =>
+          barRow(s.label, s.pct + '%', s.pct / 50, s.good ? 'good' : 'warn'))),
+        el('div.note.warn', { style: { marginTop: '8px' } }, [
+          '<strong>39%</strong> say maintaining the online catalogue takes more effort than the extra business is worth. ',
+          '<strong>23%</strong> reject orders at peak. <strong>18%</strong> are considering leaving.'
+        ]),
+        el('blockquote', {
+          style: { margin: '16px 0 0', padding: '13px 16px', borderLeft: '3px solid var(--warn)',
+                   background: 'var(--warn-soft)', borderRadius: '0 12px 12px 0', fontSize: '13.5px', color: 'var(--text-2)', fontStyle: 'italic' }
+        }, '“Customers blame us when the app says something is available but we don\'t actually have it.” — partner store owner')
+      ])
+    ]),
+
+    /* The mechanism */
+    el('div.card.hl', { style: { marginTop: '18px' } }, [
+      cap('The mechanism, end to end'),
+      el('div.grid.g5', { style: { marginTop: '14px', gap: '10px' } }, [
+        ['1', 'Store is busy', 'Updating an online catalogue earns a shop owner nothing. Stock goes stale — often for 1–3 days.'],
+        ['2', 'App keeps selling', 'The catalogue still says "available". Customers order items that are already gone.'],
+        ['3', 'Order fails', '35% of cancellations are "product unavailable", another 18% are store rejections.'],
+        ['4', 'Whole basket dies', 'One missing line cancels the entire order — ₹' + B.aov.now + ' of value and a refund.'],
+        ['5', 'Trust breaks', 'The customer blames the platform, not the shop. Support ticket. Then churn.']
+      ].map(([n, h, b]) => el('div', { style: { padding: '15px', borderRadius: '14px', background: 'var(--surface-2)', border: '1px solid var(--line)' } }, [
+        el('div', { style: { width: '26px', height: '26px', borderRadius: '8px', background: 'var(--brand)', color: '#fff',
+          display: 'grid', placeItems: 'center', fontWeight: '800', fontSize: '12.5px', marginBottom: '9px' }, text: n }),
+        el('div', { style: { fontWeight: '700', fontSize: '13.5px', marginBottom: '5px' }, text: h }),
+        el('div.tiny.muted', { style: { lineHeight: '1.5' }, text: b })
+      ])))
+    ]),
+
+    /* The killer evidence */
+    el('div.grid.g2', { style: { marginTop: '18px' } }, [
+      el('div.card.danger', null, [
+        cap('The evidence that settles it'),
+        el('div.row.mid', { style: { gap: '18px', alignItems: 'center' } }, [
+          el('div', { style: { fontSize: '54px', fontWeight: '800', color: 'var(--danger)', letterSpacing: '-.04em', lineHeight: '1' },
+            text: BEHAVIOUR.churnedWereFourStarPlus + '%' }),
+          el('div.small', { style: { color: 'var(--text-2)' } }, [
+            'of customers who stopped ordering had previously rated NOVA CART ',
+            el('strong', { style: { color: 'var(--text)' }, text: '4★ or higher' }), '.'
+          ])
+        ]),
+        el('p.small', { style: { marginTop: '14px', marginBottom: '0' } }, [
+          'This is the most important number in the entire brief. Customers do not churn because they dislike the app — ',
+          'they churn because the app broke a promise. A discount cannot repair a broken promise. ',
+          'It only buys another disappointed person.'
+        ])
+      ]),
+      el('div.card.good', null, [
+        cap('The evidence that makes it fixable'),
+        el('div.row.mid', { style: { gap: '18px', alignItems: 'center' } }, [
+          el('div', { style: { fontSize: '54px', fontWeight: '800', color: 'var(--good)', letterSpacing: '-.04em', lineHeight: '1' },
+            text: BEHAVIOUR.threeOrderRepeatProb + '%' }),
+          el('div.small', { style: { color: 'var(--text-2)' } }, [
+            'monthly repeat probability once a customer completes ',
+            el('strong', { style: { color: 'var(--text)' }, text: 'three orders' }), '.'
+          ])
+        ]),
+        el('p.small', { style: { marginTop: '14px', marginBottom: '0' } }, [
+          'Retention is not a slow curve — it is a threshold. Survive the first three orders and the customer is loyal. ',
+          'Fail during them and they are gone. The fight is won or lost in exactly the window where stock errors do the most damage.'
+        ])
+      ])
+    ])
+  ]));
+
+  /* ================================================== 6. THE FUNNEL ====== */
+  const funnelData = [
+    ['New registrations / month', D.newUsersPerMonth, 'grew 46% in six months', '#6c5ce7'],
+    ['Place a first order', Math.round(D.newUsersPerMonth * BEHAVIOUR.firstOrderCompletion / 100), BEHAVIOUR.firstOrderCompletion + '% activation', '#38bdf8'],
+    ['Place a second order in 30 days', Math.round(D.newUsersPerMonth * BEHAVIOUR.firstOrderCompletion / 100 * BEHAVIOUR.secondOrder30d / 100), BEHAVIOUR.secondOrder30d + '% — a 31pp drop', '#ffb020'],
+    ['Reach the loyal tier (3+ orders)', Math.round(D.newUsersPerMonth * BEHAVIOUR.firstOrderCompletion / 100 * BEHAVIOUR.secondOrder30d / 100 * 0.58), '~58% of 2nd-orderers', '#00d68f']
+  ];
+
+  sec([
+    el('div.grid.g2', { style: { alignItems: 'center' } }, [
+      el('div', null, [
+        cap('The funnel'),
+        el('h2', { text: 'The leak is not at the top' }),
+        el('p', { style: { marginTop: '12px' } }, [
+          'NOVA CART is excellent at the top of the funnel and terrible in the middle. ',
+          'Registration growth is the one thing money reliably buys. Everything after that depends on whether the promise held.'
+        ]),
+        el('p', { style: { marginBottom: '0' } }, [
+          'Fixing acquisition means spending more. Fixing the middle means spending the ',
+          el('em', { text: 'same' }), ' money better — and it compounds, because a customer who reaches three orders ',
+          'is worth ' + BEHAVIOUR.threeOrderRepeatProb + '% of a customer every month after.'
+        ])
+      ]),
+      el('div.card', null, [
+        cap('Monthly cohort, current performance'),
+        el('div.funnel', { style: { marginTop: '10px' } }, funnelData.map(([l, v, n, c]) =>
+          funnelRow(l, v, funnelData[0][1], c, n))),
+        el('div.hr'),
+        el('div.row.between', null, [
+          el('span.small.muted', { text: 'Reaching the loyal tier per month' }),
+          el('span.big', { style: { color: 'var(--good)' }, text: num(funnelData[3][1]) })
+        ]),
+        el('div.row.between', { style: { marginTop: '6px' } }, [
+          el('span.small.muted', { text: 'Lost between registration and loyalty' }),
+          el('span.big', { style: { color: 'var(--danger)' }, text: num(funnelData[0][1] - funnelData[3][1]) })
+        ])
+      ])
+    ])
+  ], 'tight');
+
+  /* ============================================== 7. WHY THIS PROBLEM ==== */
+  const positions = [
+    { who: 'CEO', says: 'We need to improve customer retention.',
+      verdict: 'Correct, and it is the symptom we are targeting.',
+      tone: 'good', score: 'Aligned' },
+    { who: 'Marketing Head', says: 'We need stronger acquisition and better promotions.',
+      verdict: 'This is the current strategy, and it is producing 27% repeat rate on 79% more spend. More of the same accelerates the problem.',
+      tone: 'danger', score: 'Rejected' },
+    { who: 'Operations Head', says: 'Delivery reliability is damaging the experience.',
+      verdict: 'True, but 27% of cancellations are delay-driven and much of that delay is caused by stock problems discovered mid-pick.',
+      tone: 'warn', score: 'Partly upstream' },
+    { who: 'Partner Manager', says: 'Inventory accuracy and store experience are the real bottlenecks.',
+      verdict: 'The strongest signal in the brief. Both sides name it, it is the largest single cancellation driver, and it is fixable without capex.',
+      tone: 'good', score: 'Chosen' },
+    { who: 'Product Head', says: 'We are treating ourselves like another delivery app instead of giving customers a reason to choose local commerce.',
+      verdict: 'Right instinct. We keep this as a second-order feature rather than the core — trust must exist before differentiation can matter.',
+      tone: 'info', score: 'Folded in' },
+    { who: 'Finance Head', says: "Our problem isn't growth. It's the quality and cost of that growth.",
+      verdict: 'Confirmed by the ratios: promo is now ' + D.promoShareOfRevenue.now + '% of revenue and take rate fell to ' + D.takeRate.now + '%.',
+      tone: 'good', score: 'Confirmed' }
+  ];
+
+  sec([
+    cap('Choosing a problem'),
+    el('h2', { text: 'Every executive is partly right. Only one is upstream.' }),
+    el('p', { style: { maxWidth: '800px', marginTop: '12px' } }, [
+      'The brief hands us six competing positions. Rather than pick a favourite, we scored each one against ',
+      'four tests: does the evidence support it, is it upstream of the other symptoms, can it be fixed inside ',
+      '₹25 lakh with no warehouses and no mass hiring, and does it compound?'
+    ]),
+    el('div.stack', { style: { marginTop: '24px' } }, positions.map((p) => el('div.card', {
+      style: { borderColor: p.tone === 'good' ? 'rgba(0,214,143,.3)' : p.tone === 'danger' ? 'rgba(255,77,94,.28)' : p.tone === 'warn' ? 'rgba(255,176,32,.28)' : 'var(--line)' }
+    }, [
+      el('div.row.between', { style: { alignItems: 'flex-start' } }, [
+        el('div', null, [
+          el('div', { style: { fontSize: '12px', fontWeight: '750', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--brand-2)' }, text: p.who }),
+          el('div', { style: { fontSize: '15.5px', fontWeight: '650', marginTop: '4px', color: 'var(--text)' }, text: '“' + p.says + '”' })
+        ]),
+        badge(p.score, p.tone === 'good' ? 'good' : p.tone === 'danger' ? 'danger' : p.tone === 'warn' ? 'warn' : 'info')
+      ]),
+      el('p.small', { style: { margin: '12px 0 0', color: 'var(--text-2)' }, text: p.verdict })
+    ])))
+  ], 'tight');
+
+  /* ================================================ 8. THE THESIS ======== */
+  sec([
+    el('div.card.pad-lg.hl', { style: { textAlign: 'center', padding: '44px 30px' } }, [
+      el('div.eyebrow.good', { style: { margin: '0 auto' } }, ['The product thesis']),
+      el('h2', { style: { marginTop: '18px', maxWidth: '22ch', marginLeft: 'auto', marginRight: 'auto' } },
+        'Make every promise the app makes one the store can actually keep.'),
+      el('p', { style: { maxWidth: '660px', margin: '18px auto 0', fontSize: '16px' } }, [
+        'Remove the inventory effort from the store. Stop advertising what cannot be delivered. ',
+        'Swap before payment instead of refunding after it. Re-route instead of cancelling. ',
+        'And give customers a reason to choose local that no national platform can copy.'
+      ]),
+      el('div.grid.g3', { style: { marginTop: '30px', textAlign: 'left' } }, [
+        el('div.card.flat', null, [
+          el('div.cap', { text: 'For the store owner' }),
+          el('div', { style: { fontSize: '15px', fontWeight: '700', margin: '6px 0' }, text: 'A 30-second pulse, not a catalogue' }),
+          el('p.small', { style: { margin: '0' } }, ['We tell them the ~12 items that matter today. They tap In / Low / Out. No typing, no training, no forms.'])
+        ]),
+        el('div.card.flat', null, [
+          el('div.cap', { text: 'For the customer' }),
+          el('div', { style: { fontSize: '15px', fontWeight: '700', margin: '6px 0' }, text: 'Honest availability, before payment' }),
+          el('p.small', { style: { margin: '0' } }, ['Every item carries a confidence score with its age. Shaky lines get a same-store swap offer instead of a cancellation later.'])
+        ]),
+        el('div.card.flat', null, [
+          el('div.cap', { text: 'For NOVA CART ops' }),
+          el('div', { style: { fontSize: '15px', fontWeight: '700', margin: '6px 0' }, text: 'Act before the order fails' }),
+          el('p.small', { style: { margin: '0' } }, ['Every live order is risk-scored. High-risk orders get re-routed to a store that can actually deliver, automatically.'])
+        ])
+      ]),
+      el('div.row', { style: { marginTop: '32px', justifyContent: 'center' } }, [
+        el('a.btn.primary', { href: 'app.html', style: { padding: '13px 26px', fontSize: '15px' } }, ['Open the working prototype →']),
+        el('a.btn', { href: 'impact.html', style: { padding: '13px 26px', fontSize: '15px' } }, ['See the ₹25L business case'])
+      ])
+    ])
+  ]);
+})();
+</script>
+</body>
+</html>

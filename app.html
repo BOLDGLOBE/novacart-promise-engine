@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Working Prototype — NOVA CART Promise Engine</title>
+<meta name="description" content="One system, three users: the store that cannot keep up, the customer who gets let down, and the ops team who finds out too late.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css?v=10">
+</head>
+<body>
+<div id="nav"></div>
+
+<main>
+  <section class="tight">
+    <div class="wrap">
+      <div class="eyebrow">Functional prototype · input → logic → action</div>
+      <h1 style="margin-top:16px;max-width:20ch;font-size:clamp(28px,3.6vw,44px)">One system.<br>Three people who need it.</h1>
+      <p class="lede" style="max-width:800px;margin-top:16px">
+        The store owner who cannot keep a catalogue up to date. The customer who is told something is
+        available when it is not. The ops team who only finds out after the order has already failed.
+        Switch between them below — <strong style="color:var(--text)">the same live data drives all three</strong>,
+        so a stock pulse in the store view visibly repairs the customer view.
+      </p>
+
+      <div class="rolebar" id="rolebar" style="margin-top:26px"></div>
+      <div id="view"></div>
+    </div>
+  </section>
+</main>
+
+<div id="footer"></div>
+
+<script src="assets/js/data.js?v=10"></script>
+<script src="assets/js/engine.js?v=10"></script>
+<script src="assets/js/ui.js?v=10"></script>
+<script src="assets/js/auth.js?v=20"></script>
+<script src="assets/js/customer.js?v=10"></script>
+<script src="assets/js/store.js?v=10"></script>
+<script src="assets/js/ops.js?v=10"></script>
+<script>
+(function () {
+  const { el, mount, toast } = UI;
+  const ROLES = [
+    { key: 'customer', who: 'Customer app', nm: 'Priya, 2nd order',
+      ds: 'Sees honest availability, gets a swap before paying, and never has her order cancelled for a stock error.' },
+    { key: 'store', who: 'Partner store', nm: 'Shop owner, 30 seconds',
+      ds: 'Twelve taps instead of a full inventory count. Plus a demand forecast for today and a message-based update.' },
+    { key: 'ops', who: 'Ops control tower', nm: 'NOVA CART operations',
+      ds: 'Every live order risk-scored, auto re-route instead of cancellation, and a store health worklist.' }
+  ];
+  let active = 'customer';
+
+  function renderRoles() {
+    mount(document.getElementById('rolebar'), ROLES.map((r) =>
+      el('button.role' + (active === r.key ? '.on' : ''), {
+        onclick: () => { active = r.key; renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      }, [
+        el('div.who', { text: r.who }),
+        el('div.nm', { text: r.nm }),
+        el('div.ds', { text: r.ds })
+      ])));
+  }
+
+  function renderAll() {
+    renderRoles();
+    const host = document.getElementById('view');
+    if (active === 'customer') CustomerView.render(host);
+    else if (active === 'store') StoreView.render(host);
+    else OpsView.render(host);
+  }
+
+  UI.rerender = renderAll;
+  UI.mountNav('app');
+  UI.mountFooter();
+  AUTH.init();
+
+  /* A small honesty banner: make clear which parts are modelled */
+  document.getElementById('view').insertAdjacentHTML('beforebegin', '');
+  renderAll();
+
+  /* Contextual hint that links the three roles together */
+  const hint = el('div.note', { style: { marginTop: '26px' } }, [
+    '<strong>Try this to see the whole loop:</strong> in <em>Partner store</em> run a 30-second pulse on an item, ',
+    'then switch to <em>Customer app</em> and press <em>Reveal ground truth</em>. The confidence scores you just repaired ',
+    'are the same rows the customer is reading — nothing here is mocked up for the demo.'
+  ]);
+  document.querySelector('main .wrap').appendChild(hint);
+})();
+</script>
+</body>
+</html>

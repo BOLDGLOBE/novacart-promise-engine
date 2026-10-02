@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business Impact — NOVA CART Promise Engine</title>
+<meta name="description" content="What the Promise Engine returns over six months against a ₹25 lakh budget — with every assumption exposed.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css?v=10">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <section class="tight">
+    <div class="wrap">
+      <div class="eyebrow good">Business impact · ₹25 lakh ceiling</div>
+      <h1 style="margin-top:16px;max-width:18ch;font-size:clamp(28px,3.8vw,46px)">The case, with every assumption exposed.</h1>
+      <p class="lede" style="max-width:820px;margin-top:16px">
+        A model is only worth reading if you can attack it. Every lever below is a stated assumption you can
+        move yourself, and the numbers recompute live. The defaults are deliberately conservative — if you
+        want the optimistic case, drag them up and see what it takes.
+      </p>
+    </div>
+  </section>
+
+  <section class="tight">
+    <div class="wrap">
+      <div class="grid g4" id="headline"></div>
+    </div>
+  </section>
+
+  <section class="tight">
+    <div class="wrap">
+      <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,340px);align-items:start;gap:18px" id="mainGrid">
+        <div class="stack" id="charts" style="gap:18px"></div>
+        <div class="stack" id="levers" style="gap:18px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tight"><div class="wrap"><div id="mechanism"></div></div></section>
+  <section class="tight"><div class="wrap"><div id="budget"></div></div></section>
+  <section class="tight"><div class="wrap"><div id="honesty"></div></div></section>
+  <section class="tight"><div class="wrap"><div id="risks"></div></div></section>
+</main>
+<div id="footer"></div>
+
+<script src="assets/js/data.js?v=10"></script>
+<script src="assets/js/engine.js?v=10"></script>
+<script src="assets/js/ui.js?v=10"></script>
+<script src="assets/js/auth.js?v=20"></script>
+<script>
+(function () {
+  const { el, inr, inrFull, num, pct, mount, badge, note, statLine, barRow, kpi,
+          barChart, legend, donut, openModal, modalShell, reasonsList } = UI;
+  const N = NOVA, E = ENGINE, D = NOVA.DERIVED, B = NOVA.BRIEF;
+  const BEHAVIOUR = NOVA.BEHAVIOUR;
+
+  UI.mountNav('impact');
+  UI.mountFooter();
+  AUTH.init();
+
+  /* ------------------------------------------------------------- LEVERS --- */
+  const LEVERS = [
+    { k: 'hideEffect', label: 'Bad orders stopped before payment', def: 0.45, min: 0, max: 0.8, step: 0.05,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Share of stock-error orders we prevent by not advertising unconfirmed items. These never become a cancelled order or a ticket.' },
+    { k: 'swapEffect', label: 'Converted by Smart Swap', def: 0.30, min: 0, max: 0.6, step: 0.05,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Share converted into a completed substitute order instead of being lost. This is pure recovered revenue.' },
+    { k: 'rerouteEffect', label: 'Post-order stockouts rescued', def: 0.55, min: 0, max: 0.9, step: 0.05,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Orders where an item fails after payment and we re-route to a nearby store instead of cancelling.' },
+    { k: 'etaEffect', label: 'Delay-driven cancels removed', def: 0.30, min: 0, max: 0.7, step: 0.05,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Honest ETAs plus fewer mid-pick surprises. 27% of cancellations today are customers giving up on a delay.' },
+    { k: 'ticketEffect', label: 'Support tickets deflected', def: 0.28, min: 0, max: 0.6, step: 0.02,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Refund-status and missing-item tickets stop being created, because the events that cause them stop happening.' },
+    { k: 'retentionLift', label: 'Monthly retention lift', def: 1.6, min: 0, max: 4, step: 0.1,
+      fmt: (v) => '+' + v.toFixed(1) + ' pp',
+      hint: 'THE BIG ONE. 61% of churners rated us 4★+, so much churn is broken promises rather than poor fit. +1.6pp moves monthly churn from 7.4% to 5.8%.' },
+    { k: 'localAdvantageLift', label: 'Orders per active user (local advantage)', def: 0.9, min: 0, max: 3, step: 0.1,
+      fmt: (v) => '+' + v.toFixed(1) + '%',
+      hint: 'The brief says multi-category shoppers repeat more. Surfacing hyperlocal-exclusive products lifts basket breadth.' },
+    { k: 'promoReallocation', label: 'Promo budget reallocated', def: 0.25, min: 0, max: 0.6, step: 0.05,
+      fmt: (v) => Math.round(v * 100) + '%',
+      hint: 'Share of the ₹17L monthly promo budget moved from broad first-order discount depth into reliability-linked retention.' }
+  ];
+  const cfg = {};
+  LEVERS.forEach((l) => cfg[l.k] = l.def);
+
+  /* --------------------------------------------------------------- RENDER -- */
+  function render() {
+    const M = E.impactModel(cfg);
+    renderHeadline(M);
+    renderCharts(M);
+    renderLevers(M);
+    renderMechanism(M);
+    renderBudget(M);
+    renderHonesty(M);
+    renderRisks();
+  }
+
+  function renderHeadline(M) {
+    const t = M.totals, ss = M.steadyState;
+    mount(document.getElementById('headline'), [
+      kpi('Budget used', inr(t.spend), 'of the ' + inr(t.budget) + ' ceiling — ' + (t.withinBudget ? 'within limit ✓' : 'OVER LIMIT'),
+        t.withinBudget ? 'compliant' : 'over', t.withinBudget ? 'up' : 'down'),
+      kpi('6-month benefit', inr(t.benefit), 'revenue gained + cost avoided',
+        'ROI ' + t.roiMultiple + '×', t.roiMultiple >= 1 ? 'up' : 'flat'),
+      kpi('Month-6 run rate', inr(ss.monthlyBenefit) + '/mo', 'annualised ' + inr(ss.annualBenefit),
+        'compounding', 'up'),
+      kpi('Ongoing cost coverage', ss.coverage + '×', 'monthly benefit ÷ monthly ongoing cost',
+        'one-time build only', 'up')
+    ]);
+  }
+
+  function renderCharts(M) {
+    const host = document.getElementById('charts');
+    const cum = []; let c = 0;
+    M.rows.forEach((r) => { c += r.revenueDelta + r.costAvoided; cum.push(Math.round(c)); });
+
+    mount(host, [
+      /* cumulative payback */
+      el('div.card', null, [
+        el('div.row.between', { style: { marginBottom: '16px' } }, [
+          el('div', null, [
+            el('div.cap', { text: 'Cumulative benefit vs investment' }),
+            el('div', { style: { fontSize: '15px', fontWeight: '750', marginTop: '4px' },
+              text: 'When does this pay for itself?' })
+          ]),
+          badge(M.totals.paybackMonth ? 'pays back in month ' + M.totals.paybackMonth : 'payback beyond month 6', M.totals.paybackMonth ? 'good' : 'warn')
+        ]),
+        barChart(['M1', 'M2', 'M3', 'M4', 'M5', 'M6'], [
+          { name: 'Cumulative benefit', colour: '#00d68f', values: cum },
+          { name: 'Total investment', colour: '#6c5ce7', values: M.rows.map(() => M.totals.spend) }
+        ], { height: 160, max: Math.max(M.totals.spend, ...cum) * 1.1 }),
+        el('div', { style: { marginTop: '12px' } }, legend([
+          { name: 'Cumulative benefit (₹)', colour: '#00d68f' },
+          { name: 'Total ₹25L investment', colour: '#6c5ce7' }
+        ])),
+        el('div.note' + (M.totals.paybackMonth ? '.good' : '.warn'), { style: { marginTop: '14px' } }, M.totals.paybackMonth
+          ? 'Cumulative benefit crosses the ₹25L investment in <strong>month ' + M.totals.paybackMonth + '</strong>. Because ₹' + inr(M.totals.oneTimeSpend, { exact: true }).replace('₹', '') + ' of the spend is a one-time build, the run rate after month 6 is what actually matters.'
+          : 'At these assumptions the investment does not fully pay back inside the six-month window. That is the honest read — push the retention lever up and watch how sensitive the answer is.')
+      ]),
+
+      /* month by month */
+      el('div.card', null, [
+        el('div.cap', { text: 'Month by month' }),
+        el('div.tbl-scroll', { style: { marginTop: '12px' } }, el('table', null, [
+          el('thead', null, el('tr', null, [
+            el('th', { text: 'Month' }), el('th.num', { text: 'Orders' }), el('th.num', { text: 'Cancels' }),
+            el('th.num', { text: 'Cancel rate' }), el('th.num', { text: 'Active users' }),
+            el('th.num', { text: 'Tickets' }), el('th.num', { text: 'Revenue Δ' }), el('th.num', { text: 'Cost avoided' })
+          ])),
+          el('tbody', null, M.rows.map((r) => el('tr', null, [
+            el('td', { text: 'Month ' + r.month, style: { color: 'var(--text)', fontWeight: '620' } }),
+            el('td.num', { text: num(r.placed) }),
+            el('td.num', { text: num(r.cancels) }),
+            el('td.num', null, el('span.badge.' + (r.cancelRate < 6 ? 'b-good' : r.cancelRate < 9 ? 'b-warn' : 'b-danger'), { text: r.cancelRate + '%' })),
+            el('td.num', { text: num(r.active) }),
+            el('td.num', { text: num(r.tickets) }),
+            el('td.num', { style: { color: r.revenueDelta >= 0 ? 'var(--good)' : 'var(--danger)' },
+              text: (r.revenueDelta >= 0 ? '+' : '') + inr(r.revenueDelta, { exact: true }).replace('₹', '₹') }),
+            el('td.num', { style: { color: 'var(--good)' }, text: '+' + inr(r.costAvoided, { exact: true }).replace('₹', '₹') })
+          ])))
+        ])),
+        el('div.note.warn', { style: { marginTop: '14px' } }, [
+          '<strong>Month 1 revenue is deliberately negative.</strong> We stop roughly ' + num(M.rows[0].truthCancelsPrevented) + ' bad orders from ever being placed, ',
+          'so order count dips before it climbs. Those orders were going to cancel and generate ₹0 anyway — but it is why the honest ',
+          'curve starts below the line rather than above it.'
+        ])
+      ]),
+
+      /* where the money comes from */
+      el('div.card', null, [
+        el('div.cap', { text: 'Where the benefit comes from' }),
+        el('div.grid.g2', { style: { marginTop: '16px', alignItems: 'center' } }, [
+          donut([
+            { value: M.rows.reduce((a, r) => a + r.costBreakdown.support, 0), colour: '#38bdf8' },
+            { value: M.rows.reduce((a, r) => a + r.costBreakdown.riderCapacity, 0), colour: '#ffb020' },
+            { value: M.rows.reduce((a, r) => a + r.costBreakdown.refundProcessing, 0), colour: '#a78bfa' },
+            { value: M.rows.reduce((a, r) => a + r.costBreakdown.promoSubsidy, 0), colour: '#f472b6' },
+            { value: M.totals.revenueDelta, colour: '#00d68f' }
+          ], 150, 20),
+          el('div.stack.tight', null, [
+            statLine('Support tickets avoided', inr(M.rows.reduce((a, r) => a + r.costBreakdown.support, 0), { exact: true })),
+            statLine('Rider capacity not wasted', inr(M.rows.reduce((a, r) => a + r.costBreakdown.riderCapacity, 0), { exact: true })),
+            statLine('Refund processing avoided', inr(M.rows.reduce((a, r) => a + r.costBreakdown.refundProcessing, 0), { exact: true })),
+            statLine('Promo subsidy not burned', inr(M.rows.reduce((a, r) => a + r.costBreakdown.promoSubsidy, 0), { exact: true })),
+            statLine('Revenue from retained users', inr(M.totals.revenueDelta, { exact: true })),
+            el('div.hr', { style: { margin: '8px 0' } }),
+            statLine('Total', inr(M.totals.benefit, { exact: true }), 'up')
+          ])
+        ]),
+        el('div.tiny.faint', { style: { marginTop: '14px' } },
+          'Four of the five streams are cost avoidance, not new revenue. That is the point: NOVA CART is already spending this money, badly.')
+      ])
+    ]);
+  }
+
+  function renderLevers(M) {
+    mount(document.getElementById('levers'), [
+      el('div.card.hl', { style: { position: 'sticky', top: '80px' } }, [
+        el('div.cap', { text: 'Attack the assumptions' }),
+        el('div', { style: { fontSize: '14.5px', fontWeight: '750', margin: '5px 0 4px' }, text: 'Move any lever' }),
+        el('p.tiny.muted', { style: { marginBottom: '18px' } }, 'Everything on this page recomputes instantly.'),
+        el('div', null, LEVERS.map((l) => el('div.slider-row', null, [
+          el('div.slider-top', null, [
+            el('span.nm', { text: l.label }),
+            el('span.vl', { text: l.fmt(cfg[l.k]) })
+          ]),
+          el('input', {
+            type: 'range', min: l.min, max: l.max, step: l.step, value: cfg[l.k],
+            oninput: (e) => { cfg[l.k] = parseFloat(e.target.value); render(); }
+          }),
+          el('div.slider-hint', { text: l.hint })
+        ]))),
+        el('div.row', { style: { marginTop: '6px' } }, [
+          el('button.btn.sm.ghost', { onclick: () => { LEVERS.forEach((l) => cfg[l.k] = l.def); render(); } }, 'Reset defaults'),
+          el('button.btn.sm.ghost', {
+            onclick: () => { LEVERS.forEach((l) => cfg[l.k] = l.min); render(); }
+          }, 'All to zero'),
+          el('button.btn.sm.ghost', {
+            onclick: () => { LEVERS.forEach((l) => cfg[l.k] = Math.min(l.max, l.def * 1.5)); render(); }
+          }, 'Stress up 50%')
+        ]),
+        el('div.note', { style: { marginTop: '16px' } }, [
+          '<strong>Try "All to zero".</strong> Every benefit disappears and the page shows a ₹25L cost with no return. ',
+          'That is the floor — the model has no hidden baseline gain.'
+        ])
+      ]),
+      el('div.card', null, [
+        el('div.cap', { text: 'Model assumptions' }),
+        el('div', { style: { marginTop: '12px' } }, [
+          statLine('Average order value', '₹' + M.assumptions.AOV),
+          statLine('Platform revenue per order', '₹' + M.assumptions.TAKE_PER_ORDER, 'flat'),
+          statLine('Cost to handle one ticket', '₹' + M.assumptions.TICKET_COST),
+          statLine('Rider leg on a cancelled order', '₹' + M.assumptions.DELIVERY_LEG),
+          statLine('Refund processing per order', '₹' + M.assumptions.REFUND_PROCESSING),
+          statLine('Order-attached promo subsidy', '₹' + M.assumptions.PROMO_PER_ORDER),
+          el('div.hr', { style: { margin: '10px 0' } }),
+          statLine('Baseline monthly retention', M.assumptions.baselineRetention + '%'),
+          statLine('New first orders / month', num(M.assumptions.newFirstOrders)),
+          statLine('Truth-driven cancels / month', num(M.assumptions.baselineCancelSplit.truth), 'down'),
+          statLine('Delay-driven cancels / month', num(M.assumptions.baselineCancelSplit.delay), 'down')
+        ]),
+        el('div.tiny.faint', { style: { marginTop: '12px' } },
+          'Baseline retention is fitted so the model reproduces NOVA CART\'s actual MAU trajectory: 39,000 → 46,000 while adding 6,333 registrations a month.')
+      ])
+    ]);
+  }
+
+  function renderMechanism(M) {
+    const t = M.totals;
+    mount(document.getElementById('mechanism'), el('div.card.pad-lg', null, [
+      el('div.cap', { text: 'The mechanism' }),
+      el('h2', { style: { marginTop: '8px' }, text: 'Why reliability beats discounting, arithmetically' }),
+      el('div.grid.g3', { style: { marginTop: '24px' } }, [
+        el('div.card.flat', null, [
+          el('div', { style: { fontSize: '13px', fontWeight: '750', color: 'var(--danger)' }, text: 'Today' }),
+          el('div', { style: { fontSize: '30px', fontWeight: '800', margin: '8px 0', color: 'var(--danger)' }, text: '₹' + num(D.promoPerOrder.now) }),
+          el('div.small.muted', { text: 'of promotional subsidy is loaded onto every single order.' }),
+          el('div.hr'),
+          el('div.small', { style: { color: 'var(--text-2)' } },
+            '₹' + num(D.wasteOnCancelledOrders) + ' a month of that subsidy, rider capacity and refund handling is spent on orders that then cancel.')
+        ]),
+        el('div.card.flat', null, [
+          el('div', { style: { fontSize: '13px', fontWeight: '750', color: 'var(--brand-2)' }, text: 'The alternative' }),
+          el('div', { style: { fontSize: '30px', fontWeight: '800', margin: '8px 0', color: 'var(--brand-2)' }, text: inr(t.oneTimeSpend) }),
+          el('div.small.muted', { text: 'one-time build cost, inside the ₹25L ceiling.' }),
+          el('div.hr'),
+          el('div.small', { style: { color: 'var(--text-2)' } },
+            'That is roughly ' + (t.oneTimeSpend / t.promoWastedMonthly).toFixed(1) + ' months of promo spend that is currently buying nothing at all.')
+        ]),
+        el('div.card.flat', null, [
+          el('div', { style: { fontSize: '13px', fontWeight: '750', color: 'var(--good)' }, text: 'The return' }),
+          el('div', { style: { fontSize: '30px', fontWeight: '800', margin: '8px 0', color: 'var(--good)' }, text: inr(M.steadyState.annualBenefit) }),
+          el('div.small.muted', { text: 'annual run-rate benefit at month 6.' }),
+          el('div.hr'),
+          el('div.small', { style: { color: 'var(--text-2)' } },
+            'Against ₹' + num(Math.round(M.steadyState.monthlyOngoingCost)) + '/month of ongoing cost — a ' + M.steadyState.coverage + '× coverage ratio.')
+        ])
+      ]),
+      el('div.note.good', { style: { marginTop: '20px' } }, [
+        '<strong>The compounding argument.</strong> Discounting buys a user once. Reliability buys the ',
+        'third order, and ' + BEHAVIOUR.threeOrderRepeatProb + '% of customers who reach three orders order again the following month. ',
+        'Every month the reliability fix stays in place, the retained base grows — which is why the month-6 run rate is ',
+        '<strong>' + inr(M.steadyState.monthlyBenefit) + '/month</strong> while the month-1 figure is a fraction of that.'
+      ])
+    ]));
+  }
+
+  function renderBudget(M) {
+    const oneTime = M.budget.filter((b) => b.kind === 'one-time');
+    const recurring = M.budget.filter((b) => b.kind === 'recurring');
+    const listOf = (arr) => el('div.stack.tight', { style: { marginTop: '10px' } }, arr.map((b) =>
+      el('div.row.between', { style: { padding: '9px 0', borderBottom: '1px solid var(--line-soft)' } }, [
+        el('span.small', { style: { color: 'var(--text-2)' }, text: b.item }),
+        el('span.small', { style: { fontWeight: '700', whiteSpace: 'nowrap' }, text: inrFull(b.amount) })
+      ])));
+
+    mount(document.getElementById('budget'), el('div.card.pad-lg', null, [
+      el('div.row.between', { style: { marginBottom: '18px' } }, [
+        el('div', null, [
+          el('div.cap', { text: 'Budget allocation' }),
+          el('h2', { style: { marginTop: '8px' }, text: '₹25 lakh, spent where it compounds' })
+        ]),
+        badge(M.totals.withinBudget ? 'Within the ceiling ✓' : 'Over budget', M.totals.withinBudget ? 'good' : 'danger', true)
+      ]),
+      el('div.grid.g3', null, [
+        el('div.card.flat', null, [
+          el('div.row.between', null, [el('div.cap', { text: 'One-time build' }), badge('build', 'brand')]),
+          el('div', { style: { fontSize: '26px', fontWeight: '800', marginTop: '8px' }, text: inrFull(oneTime.reduce((a, b) => a + b.amount, 0)) }),
+          listOf(oneTime)
+        ]),
+        el('div.card.flat', null, [
+          el('div.row.between', null, [el('div.cap', { text: 'Recurring (6 months)' }), badge('run', 'info')]),
+          el('div', { style: { fontSize: '26px', fontWeight: '800', marginTop: '8px' }, text: inrFull(recurring.reduce((a, b) => a + b.amount, 0)) }),
+          listOf(recurring)
+        ]),
+        el('div.card.flat', { style: { borderColor: 'rgba(108,92,231,.4)' } }, [
+          el('div.cap', { text: 'Total' }),
+          el('div', { style: { fontSize: '26px', fontWeight: '800', marginTop: '8px', color: 'var(--brand-2)' }, text: inrFull(M.totals.spend) }),
+          el('div.hr'),
+          el('div.small.muted', null, [
+            'Against a stated maximum of <strong style="color:var(--text)">₹25,00,000</strong>. ',
+            'No warehouses. No mass hiring. No deeper discounts.'
+          ]),
+          el('div.hr'),
+          el('div.stack.tight', null, [
+            statLine('Headcount added', '0'),
+            statLine('Warehouses opened', '0'),
+            statLine('Discount depth increased', 'No — reduced'),
+            statLine('Physical infrastructure', 'None')
+          ])
+        ])
+      ]),
+      el('div.note', { style: { marginTop: '18px' } }, [
+        '<strong>Note what dominates the budget.</strong> ₹12L of the ₹25L is the build itself. The ongoing cost is only ',
+        '₹' + num(Math.round(M.steadyState.monthlyOngoingCost)) + ' a month — about ' + (M.steadyState.monthlyOngoingCost / B.promoSpend.now * 100).toFixed(1) + '% of current promotional spend. ',
+        'We are not asking for a bigger budget. We are asking to spend a sliver of the existing one differently.'
+      ])
+    ]));
+  }
+
+  function renderHonesty(M) {
+    mount(document.getElementById('honesty'), el('div.card.pad-lg', null, [
+      el('div.cap', { text: 'What we are not claiming' }),
+      el('h2', { style: { marginTop: '8px' }, text: 'Limits of this model' }),
+      el('div.grid.g2', { style: { marginTop: '22px' } }, [
+        el('div.stack', null, [
+          note('<strong>Retention is the biggest assumption, and it is modelled, not measured.</strong> The +1.6pp default comes from the brief\'s own finding that 61% of churners had rated us 4★+ — evidence that a large share of churn is caused by broken promises. But it is an inference. This is exactly why the retention lever is the first thing on the page you should attack.', 'warn'),
+          note('<strong>The 6-month window understates the return.</strong> A retention improvement compounds for as long as the platform exists. Judging a compounding investment on a 6-month payback window is structurally unkind to it — which is why we show the month-6 run rate separately.'),
+          note('<strong>We are not claiming support tickets cost ₹75 exactly.</strong> It is a blended figure covering agent time, escalation and goodwill credits. At ₹150 it doubles; at ₹40 it halves. The lever makes the sensitivity obvious.')
+        ]),
+        el('div.stack', null, [
+          note('<strong>Store behaviour change is assumed, not proven.</strong> The pulse design removes most of the effort, but 620 independent shop owners are not a monolith. The ₹4L reliability incentive pool exists precisely because good design alone may not be enough. This is the largest execution risk.'),
+          note('<strong>External market data is not used.</strong> The challenge permits web research and open datasets, but NOVA CART is fictional — no public dataset describes it. Every input here traces back to the brief, and we would rather be internally consistent and auditable than look well-researched with numbers that do not apply.'),
+          note('<strong>Cross-store re-routing assumes a store density that may not exist everywhere.</strong> In this simulation the re-route engine finds a candidate ' + Math.round(100 * N.STORES.filter((s) => s.cats.length >= 4).length / N.STORES.length) + '% of the time. In a thin micro-market it degrades to proactive partial refund, which still beats a silent cancellation.')
+        ])
+      ]),
+      el('div.hr', { style: { margin: '24px 0 18px' } }),
+      el('div.row', { style: { gap: '16px' } }, [
+        el('div.kpi.grow', null, [
+          el('div.lbl', { text: 'Model floor (all levers at zero)' }),
+          el('div.val', { style: { fontSize: '24px', color: 'var(--danger)' }, text: '−' + inr(M.totals.spend) }),
+          el('div.sub', { text: 'no hidden baseline gain is baked in' })
+        ]),
+        el('div.kpi.grow', null, [
+          el('div.lbl', { text: 'Break-even retention lift required' }),
+          el('div.val', { style: { fontSize: '24px' }, text: (() => {
+            for (let v = 0; v <= 4; v += 0.1) {
+              const m = E.impactModel({ ...cfg, retentionLift: v });
+              if (m.totals.benefit >= m.totals.spend) return '+' + v.toFixed(1) + ' pp';
+            }
+            return 'not reachable';
+          })() }),
+          el('div.sub', { text: 'with the other levers at your current settings' })
+        ]),
+        el('div.kpi.grow', null, [
+          el('div.lbl', { text: 'Sensitivity' }),
+          el('div.val', { style: { fontSize: '24px' }, text: (() => {
+            const lo = E.impactModel({ ...cfg, retentionLift: 0.8 });
+            const hi = E.impactModel({ ...cfg, retentionLift: 2.4 });
+            return inr(lo.totals.benefit) + ' – ' + inr(hi.totals.benefit);
+          })() }),
+          el('div.sub', { text: 'benefit at ±0.8pp retention' })
+        ])
+      ])
+    ]));
+  }
+
+  function renderRisks() {
+    const risks = [
+      ['Stores do not adopt the pulse', 'High', 'If adoption stalls, inventory stays stale and nothing else works.',
+       'Ship on WhatsApp rather than a new app. Cap the ask at 12 taps. Pay for accuracy through the ₹4L incentive pool. Track per-store pulse rate as the primary adoption metric in week 1.'],
+      ['Hiding unconfirmed items reduces order volume', 'Medium', 'Preventing bad orders also prevents some orders that would have completed anyway.',
+       'We only act below a 40% confidence floor and we always offer a swap first. Month 1 of the model already accounts for this dip — it is visible and it recovers.'],
+      ['Re-route adds delivery cost', 'Medium', 'A second store means a second pick-up leg.',
+       'The engine only auto-re-routes within 5 km and only when added ETA is under 18 minutes. Beyond that it offers the customer a choice with a credit, which is cheaper than a refund plus a lost customer.'],
+      ['Customers distrust a visible confidence score', 'Low', 'Showing uncertainty could read as the platform being unreliable.',
+       'Test two variants: a numeric score versus a simple "confirmed / unconfirmed" label. Fall back to the label if the score performs worse. The floor is that we never advertise known-unavailable stock.'],
+      ['Retention lift does not materialise', 'Medium', 'The model\'s biggest lever is an inference from the 61% statistic.',
+       'Run the first-3-orders cohort as a controlled experiment from week one. If the lift is not visible by month 3, the reliability work still pays for itself through cost avoidance alone — the payback just extends past month 6.']
+    ];
+    mount(document.getElementById('risks'), el('div.card.pad-lg', null, [
+      el('div.cap', { text: 'Execution risk' }),
+      el('h2', { style: { marginTop: '8px' }, text: 'What could go wrong, and what we do about it' }),
+      el('div.tbl-scroll', { style: { marginTop: '20px' } }, el('table', null, [
+        el('thead', null, el('tr', null, [
+          el('th', { text: 'Risk' }), el('th', { text: 'Severity' }), el('th', { text: 'Why it matters' }), el('th', { text: 'Mitigation' })
+        ])),
+        el('tbody', null, risks.map(([r, sev, why, mit]) => el('tr', null, [
+          el('td', { style: { color: 'var(--text)', fontWeight: '620' }, text: r }),
+          el('td', null, badge(sev, sev === 'High' ? 'danger' : sev === 'Medium' ? 'warn' : 'info')),
+          el('td', { style: { fontSize: '12.5px' }, text: why }),
+          el('td', { style: { fontSize: '12.5px', color: 'var(--text-2)' }, text: mit })
+        ])))
+      ]))
+    ]));
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Stores Near You — NOVA CART Promise Engine</title>
+<meta name="description" content="Every NOVA CART partner store serving your delivery location, with real distance, delivery time and live catalogue health.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236c5ce7'/><text x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>N</text></svg>">
+<link rel="stylesheet" href="assets/css/app.css?v=20">
+</head>
+<body>
+<div id="nav"></div>
+
+<main>
+  <section class="tight">
+    <div class="wrap">
+      <div id="location-bar"></div>
+
+      <div class="row between" style="margin:26px 0 20px;align-items:flex-end">
+        <div>
+          <div class="eyebrow">Partner network</div>
+          <h1 style="margin-top:14px;font-size:clamp(24px,3.2vw,36px)" id="page-title">Local stores near you</h1>
+          <p style="margin-top:10px;max-width:640px" id="page-sub"></p>
+        </div>
+        <button class="btn" id="change-loc">📍 Change location</button>
+      </div>
+
+      <div class="grid g4" id="stats" style="margin-bottom:18px"></div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="row between" style="gap:18px;flex-wrap:wrap;align-items:flex-end">
+          <div class="grow" style="min-width:240px">
+            <div class="slider-row" style="margin-bottom:6px">
+              <div class="slider-top">
+                <span class="nm">Delivery radius</span>
+                <span class="vl" id="radius-val">4.0 km</span>
+              </div>
+              <input type="range" id="radius" min="1" max="12" step="0.5" value="4">
+              <div class="slider-hint">Stores outside this radius cannot deliver to you, and the Promise Engine cannot re-route to them either.</div>
+            </div>
+          </div>
+          <div class="grow" style="min-width:240px">
+            <label class="fl">Sort by</label>
+            <div class="row" style="gap:6px" id="sorts"></div>
+          </div>
+          <div class="grow" style="min-width:240px">
+            <label class="fl">Category</label>
+            <div class="row" style="gap:6px" id="cats"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="store-list" id="list"></div>
+    </div>
+  </section>
+</main>
+<div id="footer"></div>
+
+<script src="assets/js/data.js?v=20"></script>
+<script src="assets/js/engine.js?v=20"></script>
+<script src="assets/js/ui.js?v=20"></script>
+<script src="assets/js/auth.js?v=20"></script>
+<script>
+(function () {
+  const { el, num, toast, badge, mount } = UI;
+  const N = NOVA, E = ENGINE;
+
+  UI.mountNav('stores');
+  UI.mountFooter();
+  AUTH.init('stores');
+
+  const state = { radius: 4, sort: 'recommended', cat: 'all' };
+  const SORTS = [
+    ['recommended', 'Recommended'],
+    ['distance', 'Nearest'],
+    ['freshness', 'Freshest stock'],
+    ['fulfilment', 'Best fulfilment']
+  ];
+
+  const loc = AUTH.currentLocation();
+  const user = AUTH.currentUser();
+
+  /* --------------------------------------------------------- location bar --- */
+  function locationBar() {
+    const near = E.nearbyStores(loc, { radiusKm: state.radius });
+    return el('div.card', { style: { display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' } }, [
+      el('div', { style: { width: '46px', height: '46px', borderRadius: '13px', background: 'var(--brand-soft)',
+        display: 'grid', placeItems: 'center', fontSize: '21px', flex: 'none' }, text: '📍' }),
+      el('div.grow', { style: { minWidth: '200px' } }, [
+        el('div', { style: { fontWeight: '750', fontSize: '15.5px' },
+          text: 'Delivering to ' + loc.area + ', ' + loc.city }),
+        el('div.small.muted', { text: loc.state + ' · PIN ' + loc.pin + ' · ' + near.length + ' stores within ' + state.radius + ' km' })
+      ]),
+      user
+        ? badge('Signed in as ' + user.name.split(' ')[0], 'brand', true)
+        : el('button.btn.sm', { onclick: () => { location.href = 'auth.html?next=stores.html'; } }, 'Sign in to save this location')
+    ]);
+  }
+
+  /* ----------------------------------------------------------------- rows --- */
+  function heat(level) {
+    const tone = level >= 70 ? 'good' : level >= 40 ? 'warn' : 'danger';
+    return el('span.heat', { title: 'Catalogue freshness ' + Math.round(level * 100) + '%' },
+      [1, 2, 3, 4].map((i) => el('i' + (i <= Math.ceil(level / 25) ? '.on.' + tone : ''))));
+  }
+
+  function score(store) {
+    const h = E.storeHealth(store);
+    return Math.round(h.freshness * 45 + (store.fulfilmentScore / 100) * 35 + (1 - store.rejectRate * 5) * 20);
+  }
+
+  function render() {
+    mount(document.getElementById('location-bar'), locationBar());
+    document.getElementById('page-title').textContent = 'Local stores near ' + loc.area;
+    document.getElementById('page-sub').textContent =
+      'Every partner serving PIN ' + loc.pin + ', sorted by how much we can trust their stock — not just how close they are. ' +
+      'This list is generated from your delivery location.';
+
+    let rows = E.nearbyStores(loc, { radiusKm: state.radius, rank: state.sort === 'distance' ? 'distance' : 'trust' });
+    if (state.cat !== 'all') rows = rows.filter((r) => r.store.cats.includes(state.cat));
+
+    if (state.sort === 'freshness') rows = rows.slice().sort((a, b) => E.storeHealth(b.store).freshness - E.storeHealth(a.store).freshness || a.km - b.km);
+    if (state.sort === 'fulfilment') rows = rows.slice().sort((a, b) => b.store.fulfilmentScore - a.store.fulfilmentScore || a.km - b.km);
+    if (state.sort === 'recommended') {
+      rows = rows.slice().sort((a, b) => score(b.store) - score(a.store) || a.km - b.km);
+    }
+
+    const catsInArea = [...new Set(rows.flatMap((r) => r.store.cats))];
+
+    /* stats */
+    const totalStock = rows.reduce((s, r) => s + E.storeHealth(r.store).total, 0);
+    const avgFresh = rows.length ? rows.reduce((s, r) => s + E.storeHealth(r.store).freshness, 0) / rows.length : 0;
+    const avgEta = rows.length ? Math.round(rows.reduce((s, r) => s + E.deliveryEstimate(loc, r.store).minutes, 0) / rows.length) : 0;
+    const phantom = rows.reduce((s, r) => s + E.storeHealth(r.store).phantom, 0);
+
+    mount(document.getElementById('stats'), [
+      UI.kpi('Stores serving you', String(rows.length), 'within ' + state.radius + ' km of ' + loc.area),
+      UI.kpi('Items in their catalogues', num(totalStock), 'products you can order tonight'),
+      UI.kpi('Average catalogue freshness', Math.round(avgFresh * 100) + '%', 'how much of it we can vouch for', avgFresh > 0.6 ? 'healthy' : 'needs pulses', avgFresh > 0.6 ? 'up' : 'down'),
+      UI.kpi('Phantom stock lines', String(phantom), 'advertised but actually gone', phantom ? 'we catch these' : 'none', phantom ? 'down' : 'up')
+    ]);
+
+    /* filters */
+    mount(document.getElementById('sorts'), SORTS.map(([k, l]) =>
+      el('button.pill.click' + (state.sort === k ? '.on' : ''), { onclick: () => { state.sort = k; render(); } }, l)));
+    mount(document.getElementById('cats'), [['all', 'All']].concat(catsInArea.map((c) => [c, N.categoryById(c).icon + ' ' + N.categoryById(c).name]))
+      .map(([k, l]) => el('button.pill.click' + (state.cat === k ? '.on' : ''), { onclick: () => { state.cat = k; render(); } }, l)));
+
+    /* the list itself */
+    if (!rows.length) {
+      mount(document.getElementById('list'), el('div.card', null, [
+        el('div.cap', { text: 'Nothing in range' }),
+        el('p', { style: { marginTop: '10px' } },
+          'No NOVA CART partner is inside ' + state.radius + ' km of ' + loc.area + ' for that category. ' +
+          'Widen the radius or pick another delivery location.')
+      ]));
+      return;
+    }
+
+    const best = rows.slice().sort((a, b) => score(b.store) - score(a.store))[0];
+
+    mount(document.getElementById('list'), rows.map((r) => {
+      const s = r.store, h = E.storeHealth(s), est = E.deliveryEstimate(loc, s);
+      const sc = score(s);
+      return el('div.store-row' + (best && best.store.id === s.id ? '.best' : ''), null, [
+        el('div.thumb', { text: s.cats.includes('bakery') ? '🍞' : s.cats.includes('pharma') ? '💊'
+          : s.cats.includes('stationery') ? '✏️' : s.cats.length >= 6 ? '🏪' : '🛒' }),
+        el('div', { style: { minWidth: 0 } }, [
+          el('div.row.mid', { style: { gap: '9px', flexWrap: 'wrap' } }, [
+            el('span', { style: { fontWeight: '750', fontSize: '14.5px' }, text: s.name }),
+            r.inArea ? badge('In your area', 'good') : null,
+            best && best.store.id === s.id ? badge('Best pick here', 'good') : null,
+            s.consideringExit ? badge('May leave platform', 'danger') : null
+          ]),
+          el('div.tiny.muted', { style: { marginTop: '3px' } },
+            s.kind + ' · ' + r.location.area + ', ' + r.location.city + ' · ★ ' + s.rating +
+            ' · ' + r.km.toFixed(1) + ' km away · ' + est.minutes + ' min delivery'),
+          el('div.meta', null, [
+            heat(h.freshness),
+            el('span.tiny.muted', { text: Math.round(h.freshness * 100) + '% catalogue confirmed' }),
+            badge('Fulfilment ' + s.fulfilmentScore, s.fulfilmentScore > 70 ? 'good' : s.fulfilmentScore > 50 ? 'warn' : 'danger'),
+            h.phantom ? badge(h.phantom + ' phantom lines', 'warn') : null,
+            ...s.cats.slice(0, 3).map((c) => badge(N.categoryById(c).icon + ' ' + N.categoryById(c).name, 'mute'))
+          ])
+        ]),
+        el('div.side', null, [
+          el('div', null, [
+            el('div.tiny.muted', { text: 'Trust score' }),
+            el('div', { style: { fontSize: '22px', fontWeight: '800', color: sc > 70 ? 'var(--good)' : sc > 50 ? 'var(--warn)' : 'var(--danger)' }, text: String(sc) })
+          ]),
+          el('button.btn.sm' + (best && best.store.id === s.id ? '.good' : ''), {
+            onclick: () => {
+              try { localStorage.setItem('novacart.pickStore.v1', s.id); } catch (e) {}
+              location.href = 'app.html?store=' + s.id;
+            }
+          }, 'Shop here →')
+        ])
+      ]);
+    }));
+
+    document.getElementById('radius-val').textContent = state.radius.toFixed(1) + ' km';
+  }
+
+  document.getElementById('radius').oninput = (e) => { state.radius = parseFloat(e.target.value); render(); };
+  document.getElementById('change-loc').onclick = () => AUTH.openLocationModal(() => location.reload());
+
+  render();
+})();
+</script>
+</body>
+</html>
